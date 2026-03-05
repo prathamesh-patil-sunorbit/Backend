@@ -44,12 +44,72 @@ const formSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Arrived', 'In Progress', 'Completed', 'Cancelled'],
+      enum: [
+        'Arrived',
+        'Discussion',
+        'Discussion Table',
+        'Sample Flat Visit',
+        'Exit',
+        'In Progress',
+        'Completed',
+        'Cancelled',
+      ],
       default: 'Arrived',
     },
     submittedAt: {
       type: Date,
       default: Date.now,
+    },
+
+    // Populated by TeamLead — Table Assignment
+    tableAssignment: {
+      tableNumber:        { type: String, default: '' },
+      salesExecutive:     { type: String, default: '' },
+      assignedAt:         { type: Date },
+      waitingTimeMinutes: { type: Number },   // auto-calculated: assignedAt - submittedAt
+    },
+
+    // Populated by TeamLead — Sample Flat Visit
+    sampleFlatVisit: {
+      flatNumber:      { type: String, default: '' },
+      timeIn:          { type: Date },
+      timeOut:         { type: Date },
+      durationMinutes: { type: Number },      // auto-calculated: timeOut - timeIn
+    },
+
+    // Populated by TeamLead — Exit Door
+    exitDoor: {
+      exitAt:           { type: Date },
+      totalTimeMinutes: { type: Number },   // auto-calculated: exitAt - submittedAt
+      finalStatus:      { type: String, enum: ['Booked', 'Follow-up', 'Not Interested'], default: undefined },
+      note:             { type: String, default: '' },
+    },
+
+    statusHistory: {
+      type: [
+        {
+          oldStatus:  { type: String },
+          newStatus:  { type: String },
+          changedBy:  { type: String },   // email of the user who changed
+          changedAt:  { type: Date, default: Date.now },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+
+    // Customer flat preferences (for inventory)
+    preferredFlats: {
+      type: [
+        {
+          unitCode:       { type: String, required: true, trim: true }, // e.g. A-101
+          tower:          { type: String, default: '', trim: true },    // optional label
+          preferenceRank: { type: Number, enum: [1, 2], required: true },
+          markedAt:       { type: Date, default: Date.now },
+          _id: false,
+        },
+      ],
+      default: [],
     },
   },
   {
@@ -58,8 +118,8 @@ const formSchema = new mongoose.Schema(
 );
 
 // Auto-generate visitId before saving (e.g. VIS-001, VIS-002 ...)
-formSchema.pre('save', async function (next) {
-  if (this.visitId) return next();
+formSchema.pre('save', async function () {
+  if (this.visitId) return;
 
   const lastForm = await this.constructor
     .findOne({}, { visitId: 1 })
@@ -76,7 +136,6 @@ formSchema.pre('save', async function (next) {
   }
 
   this.visitId = `VIS-${String(nextNumber).padStart(3, '0')}`;
-  next();
 });
 
 module.exports = mongoose.model('Form', formSchema);

@@ -5,6 +5,9 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth.routes');
 const formRoutes = require('./routes/form.routes');
+const salesRoutes    = require('./routes/salesManager.routes');
+const teamLeadRoutes = require('./routes/teamLead.routes');
+const seedDemoUsers  = require('./utils/seed');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -18,8 +21,11 @@ app.get('/', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/forms', formRoutes);
+app.use('/sales', salesRoutes);
+app.use('/team-lead', teamLeadRoutes);
 
-connectDB().then(() => {
+connectDB().then(async () => {
+  await seedDemoUsers();
   app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`);
   });
