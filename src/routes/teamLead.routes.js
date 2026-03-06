@@ -6,8 +6,11 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// POST /team-lead/:visitId/assign-table    — assign table + sales exec
+// POST /team-lead/:visitId/assign-table    — assign table once only
 router.post('/:visitId/assign-table', teamLeadController.assignTable);
+
+// PATCH /team-lead/:visitId/table-assignment — update existing table assignment (table number / sales executive)
+router.patch('/:visitId/table-assignment', teamLeadController.updateTableAssignment);
 
 // POST /team-lead/:visitId/sample-flat     — start sample flat visit (time-in)
 router.post('/:visitId/sample-flat', teamLeadController.recordSampleFlat);

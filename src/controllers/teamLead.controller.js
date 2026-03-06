@@ -24,29 +24,102 @@ async function assignTable(req, res) {
       return res.status(404).json({ message: `No visitor found with ID: ${visitId}` });
     }
 
+    // Perform once only: reject if table already assigned (use PATCH table-assignment to update)
+    if (form.tableAssignment && form.tableAssignment.assignedAt) {
+      return res.status(400).json({
+        message: 'Table already assigned for this visitor. Use "Update assignment" to change table number or sales executive.',
+      });
+    }
+
     const assignedAt = new Date();
     const waitingTimeMinutes = minutesBetween(form.submittedAt, assignedAt);
+    const isTeamLead = req.user && req.user.role === 'TeamLead';
+    const tNum = tableNumber.toString().trim();
+    const sExec = salesExecutive.trim();
 
-    // Record history
-    form.statusHistory.push({
-      oldStatus: form.status,
-      newStatus: 'Discussion Table',
-      changedBy: req.user?.email || 'Unknown',
-      changedAt: assignedAt,
-    });
-
-    form.status = 'Discussion Table';
+    // Save separately: Team Lead → cabinNumber + teamLeadEmail; Sales Manager → tableNumber + salesExecutive
     form.tableAssignment = {
-      tableNumber:    tableNumber.toString().trim(),
-      salesExecutive: salesExecutive.trim(),
+      tableNumber:        isTeamLead ? (form.tableAssignment?.tableNumber || '') : tNum,
+      salesExecutive:     isTeamLead ? (form.tableAssignment?.salesExecutive || '') : sExec,
+      cabinNumber:        isTeamLead ? tNum : (form.tableAssignment?.cabinNumber || ''),
+      teamLeadEmail:      isTeamLead ? sExec : (form.tableAssignment?.teamLeadEmail || ''),
       assignedAt,
       waitingTimeMinutes,
     };
 
     await form.save();
-    return res.json({ message: 'Table assigned successfully', form });
+    return res.json({ message: 'Table assignment saved.', form });
   } catch (err) {
     console.error('Assign table error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// ─── PATCH /team-lead/:visitId/table-assignment ────────────────────────────────
+// Body: { tableNumber, salesExecutive } — update existing assignment only (assign-table is perform once)
+async function updateTableAssignment(req, res) {
+  const { visitId } = req.params;
+  const { tableNumber, salesExecutive } = req.body;
+
+  if (!tableNumber || !tableNumber.toString().trim()) {
+    return res.status(400).json({ message: 'Table number is required.' });
+  }
+  if (!salesExecutive || !salesExecutive.trim()) {
+    return res.status(400).json({ message: 'Sales executive is required.' });
+  }
+
+  try {
+    const form = await Form.findOne({ visitId: visitId.toUpperCase() });
+    if (!form) {
+      return res.status(404).json({ message: `No visitor found with ID: ${visitId}` });
+    }
+
+    const assignedAt = new Date();
+    const waitingTimeMinutes = minutesBetween(form.submittedAt, assignedAt);
+    const isTeamLead = req.user && req.user.role === 'TeamLead';
+    const tNum = tableNumber.toString().trim();
+    const sExec = salesExecutive.trim();
+    const hasAssignment = form.tableAssignment &&
+      (form.tableAssignment.assignedAt || form.tableAssignment.tableNumber || form.tableAssignment.salesExecutive ||
+       form.tableAssignment.cabinNumber || form.tableAssignment.teamLeadEmail);
+
+    if (!hasAssignment) {
+      // No assignment yet: create — save table number vs cabin number by role
+      form.tableAssignment = {
+        tableNumber:    isTeamLead ? '' : tNum,
+        salesExecutive: isTeamLead ? '' : sExec,
+        cabinNumber:    isTeamLead ? tNum : '',
+        teamLeadEmail:  isTeamLead ? sExec : '',
+        assignedAt,
+        waitingTimeMinutes,
+        updatedOnce:    false,
+      };
+      await form.save();
+      return res.json({ message: 'Table assignment saved.', form });
+    }
+
+    if (form.tableAssignment.updatedOnce) {
+      return res.status(400).json({
+        message: 'Cabin/table assignment can only be updated once for this visitor.',
+      });
+    }
+
+    if (isTeamLead) {
+      form.tableAssignment.cabinNumber = tNum;
+      form.tableAssignment.teamLeadEmail = sExec;
+    } else {
+      form.tableAssignment.tableNumber = tNum;
+      form.tableAssignment.salesExecutive = sExec;
+    }
+    form.tableAssignment.assignedAt = assignedAt;
+    form.tableAssignment.waitingTimeMinutes = waitingTimeMinutes;
+    // Mark as updated once for any role (Sales Manager or Team Lead)
+    form.tableAssignment.updatedOnce = true;
+
+    await form.save();
+    return res.json({ message: 'Table assignment updated.', form });
+  } catch (err) {
+    console.error('Update table assignment error:', err);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -145,7 +218,8 @@ async function recordExit(req, res) {
     if (!form) {
       return res.status(404).json({ message: `No visitor found with ID: ${visitId}` });
     }
-    if (form.status === 'Exit') {
+    // Exit Door action should be performed only once
+    if (form.status === 'Exit' || (form.exitDoor && form.exitDoor.exitAt)) {
       return res.status(400).json({ message: 'Visitor has already exited.' });
     }
 
@@ -170,4 +244,4 @@ async function recordExit(req, res) {
   }
 }
 
-module.exports = { assignTable, recordSampleFlat, sampleFlatCheckout, recordExit };
+module.exports = { assignTable, updateTableAssignment, recordSampleFlat, sampleFlatCheckout, recordExit };

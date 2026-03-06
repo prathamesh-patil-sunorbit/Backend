@@ -100,6 +100,25 @@ async function updateFormStatus(req, res) {
       return res.status(404).json({ message: `No form found with Visit ID: ${visitId}` });
     }
 
+    // Once Exit is recorded, block any further manual status changes
+    if (form.exitDoor && form.exitDoor.exitAt) {
+      return res.status(400).json({
+        message: 'Visitor has already exited. Status cannot be changed.',
+      });
+    }
+
+    // Allow setting "Discussion Table" only once in the journey
+    if (status === 'Discussion Table') {
+      const alreadyFinal = (form.statusHistory || []).some(
+        (h) => h.newStatus === 'Discussion Table'
+      );
+      if (alreadyFinal) {
+        return res.status(400).json({
+          message: 'Discussion Table has already been set for this visitor.',
+        });
+      }
+    }
+
     // Push history entry
     form.statusHistory.push({
       oldStatus: form.status,

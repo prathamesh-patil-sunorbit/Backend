@@ -88,12 +88,15 @@ const formSchema = new mongoose.Schema(
       default: [],
     },
 
-    // Populated by TeamLead — Table Assignment
+    // Table/Cabin assignment — stored separately: Sales Manager = tableNumber + salesExecutive; Team Lead = cabinNumber + teamLeadEmail
     tableAssignment: {
-      tableNumber:        { type: String, default: '' },
-      salesExecutive:     { type: String, default: '' },
+      tableNumber:        { type: String, default: '' },  // Sales Manager: table number
+      salesExecutive:     { type: String, default: '' },  // Sales Manager: sales executive email
+      cabinNumber:        { type: String, default: '' },  // Team Lead: cabin number
+      teamLeadEmail:      { type: String, default: '' },  // Team Lead: team lead email
       assignedAt:         { type: Date },
-      waitingTimeMinutes: { type: Number },   // auto-calculated: assignedAt - submittedAt
+      waitingTimeMinutes: { type: Number },
+      updatedOnce:        { type: Boolean, default: false },
     },
 
     // Populated by TeamLead — Sample Flat Visit
