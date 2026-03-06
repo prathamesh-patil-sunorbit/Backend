@@ -52,15 +52,12 @@ async function assignTable(req, res) {
 }
 
 // ─── POST /team-lead/:visitId/sample-flat ────────────────────────────────────
-// Body: { flatNumber, timeIn, timeOut }
-// timeOut is optional — can be sent later via PATCH
+// Body: { flatNumber?, timeIn, timeOut? }
+// flatNumber and timeOut are optional — can be sent later via PATCH
 async function recordSampleFlat(req, res) {
   const { visitId } = req.params;
   const { flatNumber, timeIn, timeOut } = req.body;
 
-  if (!flatNumber || !flatNumber.trim()) {
-    return res.status(400).json({ message: 'Flat number is required.' });
-  }
   if (!timeIn) {
     return res.status(400).json({ message: 'Time In is required.' });
   }
@@ -86,7 +83,7 @@ async function recordSampleFlat(req, res) {
 
     form.status = 'Sample Flat Visit';
     form.sampleFlatVisit = {
-      flatNumber: flatNumber.trim(),
+      flatNumber: (flatNumber && flatNumber.trim()) || '',
       timeIn:     timeInDate,
       timeOut:    timeOutDate || undefined,
       durationMinutes: durationMinutes ?? undefined,

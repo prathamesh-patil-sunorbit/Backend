@@ -49,6 +49,8 @@ const formSchema = new mongoose.Schema(
         'Discussion',
         'Discussion Table',
         'Sample Flat Visit',
+        'Sample Flat Check-in',
+        'Sample Flat Check-out',
         'Exit',
         'In Progress',
         'Completed',
@@ -59,6 +61,31 @@ const formSchema = new mongoose.Schema(
     submittedAt: {
       type: Date,
       default: Date.now,
+    },
+
+    // Token number (from Excel import or added by Sales Manager)
+    tokenNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Token tier: gold | platinum (persisted so it survives refresh)
+    tokenTier: {
+      type: String,
+      enum: ['gold', 'platinum'],
+      default: 'gold',
+    },
+    // Token upgrade history: old token, new token, timestamp (persisted)
+    tokenUpgradeHistory: {
+      type: [
+        {
+          oldToken:  { type: String },
+          newToken:  { type: String },
+          timestamp: { type: Date, default: Date.now },
+          _id: false,
+        },
+      ],
+      default: [],
     },
 
     // Populated by TeamLead — Table Assignment

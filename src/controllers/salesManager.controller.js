@@ -1,6 +1,9 @@
 const Form = require('../models/form.model');
 
-const VALID_STATUSES = ['Arrived', 'Discussion', 'In Progress', 'Completed', 'Cancelled'];
+const VALID_STATUSES = [
+  'Arrived', 'Discussion', 'In Progress', 'Completed', 'Cancelled',
+  'Sample Flat Check-in', 'Sample Flat Check-out' , 'Final Discussion Table',
+];
 
 // GET /sales/search?q=VIS-001  OR  ?q=Ramesh
 // Searches by visitId (exact, case-insensitive) OR visitor name (partial match)
